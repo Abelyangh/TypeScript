@@ -5,7 +5,6 @@
 namespace ts {
     const ambientModuleSymbolRegex = /^".+"$/;
 
-    let isResolvingImmediateAlias = false; //kill
     let nextSymbolId = 1;
     let nextNodeId = 1;
     let nextMergeId = 1;
@@ -1269,13 +1268,6 @@ namespace ts {
             return resolveExternalModuleSymbol(node.parent.symbol, immediate);
         }
 
-        //!!!
-        function getShallowTargetOfExportSpecifier(symbol: Symbol) {
-            const node = getDeclarationOfAliasSymbol(symbol);
-            Debug.assert(node.kind === SyntaxKind.ExportSpecifier);
-            return getTargetOfExportSpecifier(node as ExportSpecifier, /*dontResolveAlias*/true);
-        }
-
         function getTargetOfExportSpecifier(node: ExportSpecifier, dontResolveAlias?: boolean): Symbol {
             return (<ExportDeclaration>node.parent.parent).moduleSpecifier ?
                 getExternalModuleMember(<ExportDeclaration>node.parent.parent, node, dontResolveAlias) :
@@ -1311,9 +1303,6 @@ namespace ts {
 
 
         function resolveImmediateAlias(symbol: Symbol): Symbol {
-            Debug.assert(!isResolvingImmediateAlias);
-            isResolvingImmediateAlias = true;
-
             Debug.assert((symbol.flags & SymbolFlags.Alias) !== 0, "Should only get Alias here.");
             const links = getSymbolLinks(symbol);
             if (!links.immediateTarget) {
@@ -1322,7 +1311,6 @@ namespace ts {
                 links.immediateTarget = getTargetOfAliasDeclaration(node, /*immediate*/true);
             }
 
-            isResolvingImmediateAlias = false;
             return links.immediateTarget;
         }
 
@@ -20197,6 +20185,13 @@ namespace ts {
             return (<ExportDeclaration>node.parent.parent).moduleSpecifier ?
                 getExternalModuleMember(<ExportDeclaration>node.parent.parent, node) :
                 resolveEntityName(node.propertyName || node.name, SymbolFlags.Value | SymbolFlags.Type | SymbolFlags.Namespace | SymbolFlags.Alias);
+        }
+
+        /** Like `getExportSpecifierLocalTargetSymbol`, but works takes the Symbol rather than the Node. */
+        function getShallowTargetOfExportSpecifier(symbol: Symbol) {
+            const node = getDeclarationOfAliasSymbol(symbol);
+            Debug.assert(node.kind === SyntaxKind.ExportSpecifier);
+            return getTargetOfExportSpecifier(node as ExportSpecifier, /*dontResolveAlias*/true);
         }
 
         function getTypeOfNode(node: Node): Type {
